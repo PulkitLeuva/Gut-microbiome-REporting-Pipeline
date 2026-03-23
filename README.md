@@ -9,8 +9,8 @@ This repository contains a fully automated Snakemake pipeline for gut microbiome
 ### 🔄 Clone This Repository
 
 ```bash
-git clone --branch gut_microbiome_automation --single-branch https://github.com/DiGeMed-scripts/Pulkit_scripts.git
-cd Pulkit_scripts
+git clone https://github.com/PulkitLeuva/Gut-microbiome-REporting-Pipeline.git
+cd Gut-microbiome-REporting-Pipeline
 ```
 ## 🛠️ Installation Guide
 
@@ -35,11 +35,12 @@ Activate the new environment
 conda activate gut_microbiome_env
 ```
 Please change the base directory path in the config file. Use the repo directory folder for path
+Also you need to download the reference genome.
 Run Snakemake pipeline using below command if your conda uses default solver
 ```bash
 snakemake --cores all --use-conda all
 ```
 Run Snakemake pipeline using this command if your conda uses mamba solver
 ```bash
-snakemake --cores all --use-conda --conda-frontend conda all
+snakemake --cores 1 --use-conda --conda-frontend conda all
 ```
