@@ -1,0 +1,7 @@
+home_dir: "/home/kumardeep/Gut-microbiome-REporting-Pipeline"
+r_env_yaml: "../envs/r_env.yml"
+gmwi2_env_yml: "../envs/gmwi2_env.yml"
+r_script: "../scripts/install_packages.R"
+log_file: "../logs/r_packages_installed.log"
+gmwi2_file: "/home/kumardeep/Gut-microbiome-REporting-Pipeline/GMWI2/src/GMWI2/my.py"
+metaphlan_env: "../envs/metaphlan.yml"

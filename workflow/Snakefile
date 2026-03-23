@@ -1,0 +1,324 @@
+# Snakefile
+configfile: "config/config.yml"
+home= config["home_dir"]
+sample= ["0BPXYVnew"]
+index_dir = "/home/kumardeep/Gut-microbiome-REporting-Pipeline/Homo_sapiens_hg37_and_human_contamination_Bowtie2_v0.1/hg37dec_v0.1"
+
+rule all:
+    input:
+        expand(f"{home}/output/fastqc/{{sample}}", sample= sample),
+        expand(f"{home}/output/Aligned/{{sample}}_HR.fastq.1.gz",home= home, sample=sample),
+        expand(f"{home}/output/Aligned/{{sample}}_HR.fastq.2.gz",home= home, sample=sample),
+        expand(f"{home}/output/Trimmed/{{sample}}_R1_paired_trim.fastq.gz",home= home, sample=sample),
+        expand(f"{home}/output/Trimmed/{{sample}}_R1_unpaired_trim.fastq.gz", home= home,sample=sample),
+        expand(f"{home}/output/Trimmed/{{sample}}_R2_paired_trim.fastq.gz",home= home, sample=sample),
+        expand(f"{home}/output/Trimmed/{{sample}}_R2_unpaired_trim.fastq.gz",home= home, sample=sample),
+        expand(f"{home}/output/Trimmed/{{sample}}_trimmomatic_summary.txt",home= home, sample=sample),
+        expand(f"{home}/output/Trimmed/{{sample}}_trimmomatic_log.txt",home= home, sample=sample),
+        expand(f"{home}/output/mpa4_bowtie_out/{{sample}}.bowtie2.bz2",home= home, sample=sample),
+        expand(f"{home}/output/metaphlan/{{sample}}_profiled_mpa4.txt",home= home, sample=sample),
+        parse_ph = expand(f'{home}/output/metaphlan_parse/{{sample}}_phylum.csv',home= home, sample=sample),
+        parse_sp = expand(f'{home}/output/metaphlan_parse/{{sample}}_species.csv',home= home, sample=sample),
+        pie_plot = expand(f"{home}/output/metaphlan_plots/{{sample}}_phylum.png",home= home, sample=sample),
+        count_file= expand(f"{home}/output/metaphlan_parse/{{sample}}_count.csv",home= home, sample=sample),
+        ratio_plot = expand(f"{home}/output/metaphlan_plots/{{sample}}_phylum_ratio.png",home= home, sample=sample),
+        fb = expand(f"{home}/output/metaphlan_plots/{{sample}}_fb.csv",home= home, sample=sample),
+        top15_plot = expand(f"{home}/output/metaphlan_plots/{{sample}}_species_top15.png",home= home, sample=sample),
+        metrics= expand(f"{home}/output/metaphlan_plots/{{sample}}_metrics.csv",home= home, sample=sample),
+        richness= expand(f"{home}/output/metaphlan_plots/{{sample}}_gauge_richness.png",home= home, sample=sample),
+        shannon= expand(f"{home}/output/metaphlan_plots/{{sample}}_gauge_shannon.png",home= home, sample=sample),
+        evenness= expand(f"{home}/output/metaphlan_plots/{{sample}}_gauge_evenness.png",home= home, sample=sample),
+        beneficial= expand(f"{home}/output/metaphlan_plots/{{sample}}_beneficial_sp.csv",home= home, sample=sample),
+        gmwi2_score = expand(f"{home}/output/metaphlan_plots/{{sample}}_gmwi2_score.txt",home= home, sample=sample),
+        gmwi2_taxa = expand(f"{home}/output/metaphlan_plots/{{sample}}_gmwi2_taxa.txt",home= home, sample=sample),
+        gmwi2_plot = expand(f"{home}/output/metaphlan_plots/{{sample}}_gmwi2_plot.png",home= home, sample=sample),
+        gmwi2_csv = expand(f"{home}/output/metaphlan_plots/{{sample}}_gmwi2.csv",home= home, sample=sample),
+        metadata = expand(f"{home}/output/metaphlan_plots/{{sample}}_metadata.csv",home= home, sample=sample),
+        pdf = expand(f"{home}/output/metaphlan_plots/{{sample}}_Gut_microbiome.pdf",home= home, sample=sample)
+    
+rule fastqc:
+    input:
+        fastq1 = f"{home}/input/fastq/{{sample}}_R1_001.fastq.gz",
+        fastq2 = f"{home}/input/fastq/{{sample}}_R2_001.fastq.gz"
+    output:
+        outdir = directory(f"{home}/output/fastqc/{{sample}}")
+    log:
+        log = f"{home}/logs/{{sample}}.fastqc.log"
+    benchmark:
+        f"{home}/benchmark/{{sample}}_fastqc.tsv"
+    message: "Executing fastqc on sample {wildcards.sample}."
+    shell:
+        """
+        mkdir {home}/output/fastqc/{wildcards.sample}
+        fastqc --outdir {output.outdir} {input.fastq1} {input.fastq2} > {log}
+        """
+rule bowtie2_align:
+    input:
+        fastq1 = f"{home}/input/fastq/{{sample}}_R1_001.fastq.gz",
+        fastq2 = f"{home}/input/fastq/{{sample}}_R2_001.fastq.gz"
+    output:
+        unaligned1 = f"{home}/output/Aligned/{{sample}}_HR.fastq.1.gz",
+        unaligned2 = f"{home}/output/Aligned/{{sample}}_HR.fastq.2.gz"
+    params:
+        index = index_dir,
+        threads = 40,
+        unaligned_dir = f"{home}/output/Aligned"
+    resources:
+        mem_mb=250000,
+    log:
+        f"{home}/logs/{{sample}}.bowtie2.log"
+    benchmark:
+        f"{home}/benchmark/{{sample}}_bowtie2.tsv"
+    shell:
+        """
+        bowtie2 -x {params.index} -1 {input.fastq1} -2 {input.fastq2} \
+        --un-conc-gz {params.unaligned_dir}/{wildcards.sample}_HR.fastq.%.gz \
+        --threads {params.threads} -q --time 2> {log}
+        """
+
+# Define the rule for trimming reads using Trimmomatic
+rule trimmomatic_trim:
+    input:
+        fastq1 = f"{home}/output/Aligned/{{sample}}_HR.fastq.1.gz",
+        fastq2 = f"{home}/output/Aligned/{{sample}}_HR.fastq.2.gz"
+    output:
+        paired1 = f"{home}/output/Trimmed/{{sample}}_R1_paired_trim.fastq.gz",
+        unpaired1 = f"{home}/output/Trimmed/{{sample}}_R1_unpaired_trim.fastq.gz",
+        paired2 = f"{home}/output/Trimmed/{{sample}}_R2_paired_trim.fastq.gz",
+        unpaired2 = f"{home}/output/Trimmed/{{sample}}_R2_unpaired_trim.fastq.gz",
+        summary = f"{home}/output/Trimmed/{{sample}}_trimmomatic_summary.txt",
+        trimlog = f"{home}/output/Trimmed/{{sample}}_trimmomatic_log.txt"
+    benchmark:
+        f"{home}/benchmark/{{sample}}_trimmomatic.tsv"
+    params:
+        threads = 40
+    shell:
+        """
+        trimmomatic PE -phred33 {input.fastq1} {input.fastq2} \
+        {output.paired1} {output.unpaired1} \
+        {output.paired2} {output.unpaired2} \
+        LEADING:30 TRAILING:30 SLIDINGWINDOW:4:20 MINLEN:70 \
+        -threads {params.threads} \
+        -summary {output.summary} \
+        -trimlog {output.trimlog}
+        """
+
+rule metaphlan_profile:
+    input:
+        paired1 = f"{home}/output/Trimmed/{{sample}}_R1_paired_trim.fastq.gz",
+        paired2 = f"{home}/output/Trimmed/{{sample}}_R2_paired_trim.fastq.gz"
+    output:
+        bowtie2out = f"{home}/output/mpa4_bowtie_out/{{sample}}.bowtie2.bz2",
+        profile = f"{home}/output/metaphlan/{{sample}}_profiled_mpa4.txt"
+    params:
+        bowtie2db = f"{home}",
+        threads = 40
+    log:
+        f"{home}/logs/{{sample}}.metaphlan.log"
+    benchmark:
+        f"{home}/benchmark/{{sample}}_metaphlan.tsv"
+    conda:
+        config["metaphlan_env"]
+    shell:
+        """
+        metaphlan {input.paired1},{input.paired2} \
+        --input_type fastq \
+        --add_viruses \
+        --sample_id {wildcards.sample}\
+        --bowtie2out {output.bowtie2out} \
+        --nproc {params.threads} \
+        -o {output.profile} \
+        --bowtie2db {params.bowtie2db} \
+        > {log} 2>&1
+        """
+        
+rule install_r_packages:
+    input:
+        f"{home}/scripts/install_packages.R"
+    output:
+        "logs/r_packages_installed.log"
+    conda:
+        config["r_env_yaml"]
+    shell:
+        """
+        Rscript {input}
+        echo "R packages installed" > {output}
+        """
+
+rule parse_metaphlan:
+    input:
+        metaphlan = f"{home}/output/metaphlan/{{sample}}_profiled_mpa4.txt"
+    output:
+        phylum = f"{home}/output/metaphlan_parse/{{sample}}_phylum.csv",
+        species = f"{home}/output/metaphlan_parse/{{sample}}_species.csv",
+        count_file = f"{home}/output/metaphlan_parse/{{sample}}_count.csv"
+    script:
+        f"{home}/scripts/parse_metaphlan.py"
+
+rule plot_phylum_pie:
+    input:
+        table = f"{home}/output/metaphlan_parse/{{sample}}_phylum.csv"
+    output:
+        plot = f"{home}/output/metaphlan_plots/{{sample}}_phylum.png"
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/plot_phylum_piechart.R"
+    shell:
+        "Rscript {params.script} {input.table} {output.plot}"
+
+rule plot_phylum_ratio:
+    input:
+        table = f"{home}/output/metaphlan_parse/{{sample}}_phylum.csv"
+    output:
+        plot = f"{home}/output/metaphlan_plots/{{sample}}_phylum_ratio.png",
+        fb= f"{home}/output/metaphlan_plots/{{sample}}_fb.csv"
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/plot_phylum_ratio.R"
+    shell:
+        "Rscript {params.script} {input.table} {output.plot} {output.fb}"
+
+rule plot_species_top15:
+    input:
+        table = f"{home}/output/metaphlan_parse/{{sample}}_species.csv"
+    output:
+        plot = f"{home}/output/metaphlan_plots/{{sample}}_species_top15.png",
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/top15_2.R",
+    shell:
+        """
+        Rscript {params.script} {input.table} {output.plot}
+        """
+
+rule calculate_metrics:
+    input:
+        csv= f"{home}/output/metaphlan_parse/{{sample}}_species.csv",
+    output:
+        csv= f"{home}/output/metaphlan_plots/{{sample}}_metrics.csv",
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/calculate_metrics.R",
+    shell:
+        """
+        Rscript {params.script} {input.csv} {output.csv}
+        """
+
+rule gauge_richness:
+    input:
+        csv = f"{home}/output/metaphlan_plots/{{sample}}_metrics.csv",
+    output:
+        plot = f"{home}/output/metaphlan_plots/{{sample}}_gauge_richness.png",
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/gauge_richness.R",
+    shell:
+        """
+        Rscript {params.script} {input.csv} {output.plot}
+        """
+
+rule gauge_shannon:
+    input:
+        csv = f"{home}/output/metaphlan_plots/{{sample}}_metrics.csv",
+    output:
+        plot = f"{home}/output/metaphlan_plots/{{sample}}_gauge_shannon.png",
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/gauge_shannon.R",
+    shell:
+        """
+        Rscript {params.script} {input.csv} {output.plot}
+        """
+
+rule gauge_evenness:
+    input:
+        csv = f"{home}/output/metaphlan_plots/{{sample}}_metrics.csv",
+    output:
+        plot = f"{home}/output/metaphlan_plots/{{sample}}_gauge_evenness.png",
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/gauge_evenness.R",
+    shell:
+        """
+        Rscript {params.script} {input.csv} {output.plot}
+        """
+
+rule beneficial_table:
+    input:
+        top20 = f"{home}/input/metaphlan/New_Top20.xlsx",
+        updated = f"{home}/input/metaphlan/New_List_of_Organisms_Updated.xlsx",
+        csv= f"{home}/output/metaphlan_parse/{{sample}}_species.csv",
+    output:
+        csv = f"{home}/output/metaphlan_plots/{{sample}}_beneficial_sp.csv",
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/beneficial_sp.R",
+    shell:
+        """
+        Rscript {params.script} {input.top20} {input.updated} {input.csv} {output.csv}
+        """
+rule gmwi2_score:
+    input:
+        mpa3 = f"{home}/input/metaphlan/{{sample}}_metaphlan.txt"
+    output:
+        score = f"{home}/output/metaphlan_plots/{{sample}}_gmwi2_score.txt",
+        taxa = f"{home}/output/metaphlan_plots/{{sample}}_gmwi2_taxa.txt",
+    conda:
+        config["gmwi2_env_yml"]
+    params:
+        script = config["gmwi2_file"]
+    shell:
+        """
+        python -m pip show joblib || python -m pip install joblib
+        python -m pip show halo || python -m pip install halo
+        python -m pip show scikit-learn || python -m pip install scikit-learn
+        python {params.script} {input.mpa3} {output.score} {output.taxa}
+        """
+rule gmwi2_plot:
+    input:
+        score = f"{home}/output/metaphlan_plots/{{sample}}_gmwi2_score.txt",
+    output:
+        plot = f"{home}/output/metaphlan_plots/{{sample}}_gmwi2_plot.png",
+        csv= f"{home}/output/metaphlan_plots/{{sample}}_gmwi2.csv"
+    conda:
+        config["r_env_yaml"]
+    params:
+        script= f"{home}/scripts/gmwi2_plot.R",
+    shell:
+        """
+        Rscript {params.script} {input.score} {output.plot} {output.csv}
+        """
+rule merge_metadata:
+    input:
+        metrics= f"{home}/output/metaphlan_plots/{{sample}}_metrics.csv",
+        fb= f"{home}/output/metaphlan_plots/{{sample}}_fb.csv",
+        gmwi2 = f"{home}/output/metaphlan_plots/{{sample}}_gmwi2.csv",
+        count_file = f"{home}/output/metaphlan_parse/{{sample}}_count.csv"
+    output:
+        csv= f"{home}/output/metaphlan_plots/{{sample}}_metadata.csv"
+    params:
+        script= f"{home}/scripts/merge.py",
+    shell:
+        """
+        python {params.script} {input.metrics} {input.fb} {input.gmwi2} {input.count_file} {output.csv}
+        """
+rule pdf_generation:
+    input:
+        meta= f"{home}/output/metaphlan_plots/{{sample}}_metadata.csv"
+    output:
+        pdf = f"{home}/output/metaphlan_plots/{{sample}}_Gut_microbiome.pdf"
+    params:
+        script= f"{home}/scripts/HPc_Python_copy.py"
+    shell:
+        """
+        pip install reportlab
+        python {params.script} {input.meta} {output.pdf}
+        """

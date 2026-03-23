@@ -1,0 +1,25 @@
+# envs/r_env.yml
+name: r_env
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.3
+  - r-readxl
+  - r-tidyverse
+  - r-optparse
+  - r-scales
+  - r-reshape2
+  - r-ggplot2
+  - r-RColorBrewer
+  - r-devtools
+  - r-writexl
+  - r-ggbiplot
+  - r-glue
+  - r-ggpubr
+  - r-vegan
+  - r-ggtext
+  - r-tidytext
+  - r-tidyverse
+  - r-stringr
+  - r-xlsx

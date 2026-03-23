@@ -1,0 +1,14 @@
+# Ignore temp/output folders
+Homo_sapiens_hg37_and_human_contamination_Bowtie2_v0.1
+Homo_sapiens_hg37_and_human_contamination_Bowtie2_v0.1.tar.gz
+mpa_latest
+mpa_vJan25_CHOCOPhlAnSGB_202503*
+metaphlan_db
+logs/
+output/
+.snakemake/
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+input/fastq/
