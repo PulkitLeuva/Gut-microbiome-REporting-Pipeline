@@ -1,0 +1,12 @@
+name: gut_microbiome_env
+channels:
+  - conda-forge
+  - defaults
+  - bioconda
+dependencies:
+  - python=3.12
+  - mamba
+  - snakemake=8.1.0
+  - r-base=4.3.1
+  - r-essentials
+  - pip
