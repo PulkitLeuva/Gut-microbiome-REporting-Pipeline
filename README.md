@@ -35,7 +35,7 @@ Activate the new environment
 conda activate gut_microbiome_env
 ```
 Please change the config file to update the base directory path. Use the repo directory folder for path.
-Also you need to download the reference genome (Homo_sapiens_hg37_and_human_contamination_Bowtie2_v0.1) from this link https://huttenhower.sph.harvard.edu/kneadData_databases/.
+Please download and unpack the reference genome (Homo_sapiens_hg37_and_human_contamination_Bowtie2_v0.1) from this link https://huttenhower.sph.harvard.edu/kneadData_databases/.
 Run Snakemake pipeline using below command if your conda uses default solver
 ```bash
 snakemake --cores all --use-conda all
