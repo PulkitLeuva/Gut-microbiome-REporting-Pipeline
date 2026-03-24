@@ -34,8 +34,8 @@ Activate the new environment
 ```bash
 conda activate gut_microbiome_env
 ```
-Please change the base directory path in the config file. Use the repo directory folder for path
-Also you need to download the reference genome.
+Please change the config file to update the base directory path. Use the repo directory folder for path.
+Also you need to download the reference genome (Homo_sapiens_hg37_and_human_contamination_Bowtie2_v0.1) from this link https://huttenhower.sph.harvard.edu/kneadData_databases/.
 Run Snakemake pipeline using below command if your conda uses default solver
 ```bash
 snakemake --cores all --use-conda all
@@ -44,3 +44,4 @@ Run Snakemake pipeline using this command if your conda uses mamba solver
 ```bash
 snakemake --cores 1 --use-conda --conda-frontend conda all
 ```
+When ran for the first time the pipeline may take time to download metaphlan database.
